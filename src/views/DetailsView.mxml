@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" title="{StringUtil.trim(_objProductDetails.brandName)}"
+		creationComplete="init()" 
+		backgroundColor="#efefef">
+	<fx:Declarations>
+		<s:HTTPService id="getProductDetails" resultFormat="text" method="GET"
+					   result="getProductDetails_resultHandler(event)" fault="getProductDetails_faultHandler(event)"/>
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.distriqt.extension.webp.WebP;
+			
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.StringUtil;
+			
+			import components.EmptyStarLabel;
+			import components.FullStarLabel;
+			import components.HalfStarLabel;
+			
+			import dto.ProductDetails;
+			
+			import utils.Polygon;
+			
+			private var _dataLoaded:Boolean = false;
+			
+			[Bindable] 
+			private var _objProductDetails:ProductDetails;
+			
+			private function createRating():void
+			{
+				var rating:Number = _objProductDetails.rating;
+				for(var i:int = 1; i <= 5; i++)
+				{
+					if(i <= rating)
+					{
+						ratingContainer.addElement(new FullStarLabel());
+					}
+					else
+					{
+						if( (i - rating) < 1 )
+						{
+							ratingContainer.addElement(new HalfStarLabel());
+						}
+						else
+						{
+							ratingContainer.addElement(new EmptyStarLabel());
+						}
+					}
+				}
+			}
+			
+			private function init():void
+			{
+				getProductDetails.url = "http://ec2-52-25-175-37.us-west-2.compute.amazonaws.com:8080/Snap2Pay-1.0/service/S2P/getUpcDetails?upc=" + (data as Polygon).upc;
+				getProductDetails.send();
+			}
+			
+			
+			private function loadWebP():void
+			{
+				if(!_dataLoaded)
+				{
+					if (WebP.isSupported)
+					{
+						// LOAD THUMBNAIL IMAGE
+						var file:File = File.applicationDirectory.resolvePath( "assets/images/webp/" + _objProductDetails.thumbnailName + ".webp" );
+						var fs:FileStream = new FileStream();
+						fs.open( file, FileMode.READ );
+						var byteData:ByteArray = new ByteArray();
+						fs.readBytes( byteData, 0, fs.bytesAvailable );
+						fs.close();
+						
+						var decodedData:ByteArray = new ByteArray();
+						
+						var success:Boolean = WebP.service.parseWebP( byteData, decodedData );
+						
+						if (success) 
+						{
+							var rect:Rectangle = new Rectangle( 0, 0, WebP.service.width, WebP.service.height );
+							var bd:BitmapData = new BitmapData( WebP.service.width, WebP.service.height, true );
+							bd.setPixels( rect, decodedData );
+							
+							thumbnail.source = new Bitmap(bd);
+						}
+						
+						/*
+						// LOAD LOWEST PRICE IMAGE
+						if( _objProductDetails.priceLabel == "Store Low" )
+						{
+							var lpfile:File = File.applicationDirectory.resolvePath( "assets/images/lowestPrice.webp");
+							var lpfs:FileStream = new FileStream();
+							lpfs.open( lpfile, FileMode.READ );
+							var lpdata:ByteArray = new ByteArray();
+							lpfs.readBytes( lpdata, 0, lpfs.bytesAvailable );
+							lpfs.close();
+							
+							var lpdecodedData:ByteArray = new ByteArray();
+							
+							var lpsuccess:Boolean = WebP.service.parseWebP( lpdata, lpdecodedData );
+							
+							if (lpsuccess) 
+							{
+								var lprect:Rectangle = new Rectangle( 0, 0, WebP.service.width, WebP.service.height );
+								var lpbd:BitmapData = new BitmapData( WebP.service.width, WebP.service.height, true );
+								lpbd.setPixels( lprect, lpdecodedData );
+								
+								lowPriceImg.source = new Bitmap(lpbd);
+							}
+						}*/
+					}
+					_dataLoaded = true;
+				}
+			}
+			
+			protected function getProductDetails_resultHandler(event:ResultEvent):void
+			{
+				var result:Object = JSON.parse(String(event.result));
+				_objProductDetails = new ProductDetails();
+				_objProductDetails.upc = result.ResultSet.row.upc;
+				_objProductDetails.brandName = result.ResultSet.row.brand_name;
+				_objProductDetails.attribute_1 = result.ResultSet.row.attribute_1;
+				_objProductDetails.attribute_2 = result.ResultSet.row.attribute_2;
+				_objProductDetails.longName = result.ResultSet.row.product_long_name;
+				_objProductDetails.attribute_3 = result.ResultSet.row.attribute_3;
+				_objProductDetails.attribute_4 = result.ResultSet.row.attribute_4;
+				_objProductDetails.attribute_5 = result.ResultSet.row.attribute_5;
+				_objProductDetails.price = (data as Polygon).price;
+				_objProductDetails.shortName = result.ResultSet.row.product_short_name;
+				_objProductDetails.rating = result.ResultSet.row.product_rating;
+				//_objProductDetails.thumbnailName = result.ResultSet.row.thumbnail;
+				_objProductDetails.why_buy_1 = result.ResultSet.row.why_buy_1;
+				_objProductDetails.why_buy_2 = result.ResultSet.row.why_buy_2;
+				_objProductDetails.why_buy_3 = result.ResultSet.row.why_buy_3;
+				_objProductDetails.why_buy_4 = result.ResultSet.row.why_buy_4;
+				
+				thumbnail.source = "http://ec2-52-25-175-37.us-west-2.compute.amazonaws.com:8080/Snap2Pay-1.0/service/S2P/getUpcImage?upc=" + _objProductDetails.upc;
+				
+				createRating();
+				
+				//loadWebP();
+			}
+			
+			protected function getProductDetails_faultHandler(event:FaultEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			
+		]]>
+	</fx:Script>
+	<s:Group width="100%" height="100%">
+		<s:Rect left="10" right="10" top="10" bottom="10">
+			<s:fill>
+				<s:SolidColor color="#FFFFFF"/>
+			</s:fill>
+		</s:Rect>
+		
+		<s:Image id="thumbnail" width="100" height="130" top="15" left="15"/><!-- scaleX="0.14" scaleY="0.14" -->
+		<s:Image id="lowPriceImg" scaleX="0.6" scaleY="0.6" bottom="-75" horizontalCenter="0"/>
+		
+		<s:HGroup id="ratingContainer" top="15" left="125" gap="1" />
+		<s:VGroup left="125" top="35" right="15">
+			<s:VGroup gap="0" width="100%">
+				<s:Label text="{StringUtil.trim(_objProductDetails.shortName)}"  width="100%"  styleName="productNameStyle"/>
+				<s:Label text="{StringUtil.trim(_objProductDetails.longName)}"  width="100%"  styleName="descriptionStyle"/>
+			</s:VGroup>
+			<s:HGroup includeInLayout="{StringUtil.trim(_objProductDetails.attribute_1) != '' ? true:false}" visible="{StringUtil.trim(_objProductDetails.attribute_1) != '' ? true:false}" >
+				<s:Label text="&#xe116;" styleName="starStyle" color="#b90404"/>
+				<s:Label text="{' ' + StringUtil.trim(_objProductDetails.attribute_1)}"  width="100%" styleName="featureStyle"/>
+			</s:HGroup>
+			<s:HGroup includeInLayout="{StringUtil.trim(_objProductDetails.attribute_2) != '' ? true:false}" visible="{StringUtil.trim(_objProductDetails.attribute_2) != '' ? true:false}">
+				<s:Label text="&#xe116;" styleName="starStyle" color="#b90404"/>
+				<s:Label text="{' ' + StringUtil.trim(_objProductDetails.attribute_2)}" width="100%"  styleName="featureStyle"/>
+			</s:HGroup>
+			<s:HGroup includeInLayout="{StringUtil.trim(_objProductDetails.attribute_3) != '' ? true:false}" visible="{StringUtil.trim(_objProductDetails.attribute_3) != '' ? true:false}" >
+				<s:Label text="&#xe116;" styleName="starStyle" color="#b90404"/>
+				<s:Label text="{' ' + StringUtil.trim(_objProductDetails.attribute_3)}"  width="100%" styleName="featureStyle"/>
+			</s:HGroup>
+			<s:HGroup includeInLayout="{StringUtil.trim(_objProductDetails.attribute_4) != '' ? true:false}" visible="{StringUtil.trim(_objProductDetails.attribute_4) != '' ? true:false}" >
+				<s:Label text="&#xe116;" styleName="starStyle" color="#b90404"/>
+				<s:Label text="{' ' + StringUtil.trim(_objProductDetails.attribute_4)}"  width="100%" styleName="featureStyle"/>
+			</s:HGroup>
+			<s:HGroup includeInLayout="{StringUtil.trim(_objProductDetails.attribute_5) != '' ? true:false}" visible="{StringUtil.trim(_objProductDetails.attribute_5) != '' ? true:false}" >
+				<s:Label text="&#xe116;" styleName="starStyle" color="#b90404"/>
+				<s:Label text="{' ' + StringUtil.trim(_objProductDetails.attribute_5)}"  width="100%" styleName="featureStyle"/>
+			</s:HGroup>
+		</s:VGroup>
+		
+		<s:Line left="0" right="0" height="1" top="178">
+			<s:stroke>
+				<s:SolidColorStroke color="#efefef"/>
+			</s:stroke>
+		</s:Line>
+		<s:Scroller top="187" bottom="15" left="15" right="15">
+			<s:VGroup width="100%" height="100%">
+				<s:Label text="{StringUtil.trim(_objProductDetails.why_buy_1)}" styleName="descriptionStyle" width="100%"/>
+				<s:Label text="{StringUtil.trim(_objProductDetails.why_buy_2)}" styleName="descriptionStyle" width="100%"/>
+				<s:Label text="{StringUtil.trim(_objProductDetails.why_buy_3)}" styleName="descriptionStyle" width="100%"/>
+				<s:Label text="{StringUtil.trim(_objProductDetails.why_buy_4)}" styleName="descriptionStyle" width="100%"/>
+			</s:VGroup>
+		</s:Scroller>
+
+	</s:Group>
+</s:View>

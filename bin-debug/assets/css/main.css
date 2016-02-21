@@ -1,0 +1,78 @@
+/* CSS file */
+@namespace s "library://ns.adobe.com/flex/spark";
+
+@font-face {
+	src:url("assets/fonts/icomoon.ttf");
+	fontFamily: icomoon;
+	
+}
+
+@font-face {
+	src:url("assets/fonts/stars.ttf");
+	fontFamily: stars;
+}
+
+s|ActionBar
+{
+	chromeColor: #02ABC3;
+}
+
+s|ActionBar #titleDisplay
+{
+	fontWeight: normal;
+	color: #FFFFFF;
+}
+
+.starStyle
+{
+	color : #d07a00;
+	fontFamily : "stars";
+	fontSize : 20;
+}
+
+.tickStyle
+{
+	color : #04B404;
+	fontFamily : "stars";
+	fontSize : 20;
+}
+
+.handIconStyle
+{
+	color : #00ECFA;
+	fontFamily : "icomoon";
+	fontSize : 45;
+}
+
+.menuLableStyle
+{
+	color : #FFFFFF;
+	fontSize : 15;
+	fontWeight : normal;
+}
+
+.pointIndicatorStyle
+{
+	color : #FFFFFF;
+	fontSize : 8;
+	fontWeight : normal;
+}
+
+.productNameStyle
+{
+	color : #d07a00;
+	fontSize : 16;
+}
+
+.featureStyle
+{
+	color : #b90404;
+	fontSize : 14;
+}
+
+.descriptionStyle
+{
+	color : #5d5858;
+	fontSize : 14;
+}
+

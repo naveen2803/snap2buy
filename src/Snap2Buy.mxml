@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:ViewNavigatorApplication xmlns:fx="http://ns.adobe.com/mxml/2009" 
+							xmlns:s="library://ns.adobe.com/flex/spark" 
+							firstView="views.Snap2BuyHomeView" applicationDPI="160"
+							initialize="initDatabase()"
+							splashScreenImage="MySplashScreen"
+							splashScreenScaleMode="zoom">
+	<fx:Style source="assets/css/main.css"/>
+	<fx:Script>
+		<![CDATA[
+			import com.distriqt.extension.webp.WebP;
+			
+			import database.Database;
+			import database.DatabaseEvent;
+			import database.DatabaseResponder;
+			
+			import licence.Licence;
+			
+			import model.ModelLocator;
+			
+			public static var deviceUUID:String = "";
+			private var uploadServiceBasURL:String = "http://ec2-52-25-175-37.us-west-2.compute.amazonaws.com:8080/Snap2Pay-1.0/service/S2P/saveImage?userId=";
+			
+			private function initDatabase():void
+			{
+				WebP.init( Licence.WEBP_LICENCE_KEY );
+				
+				var ml:ModelLocator = ModelLocator.getInstance();
+				if ( ml.db ) return;
+				
+				ml.db = new Database();
+				var responder:DatabaseResponder = new DatabaseResponder();
+				responder.addEventListener(DatabaseEvent.ERROR_EVENT, onError);
+				responder.addEventListener(DatabaseEvent.RESULT_EVENT,onResult);				
+				ml.db.init(responder);				
+				
+				function onError(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+				}
+				
+				function onResult(de:DatabaseEvent):void
+				{
+					if ( de.data && de.data == Database.TABLES_CREATED )
+					{
+						// All tables created						
+						responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+						responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+						
+						// for the first time when the application launches check the cached data
+						if( checkForWIFI() )
+						{
+							getCachedDataInformation();
+						}
+					}		
+				}
+				
+				NativeApplication.nativeApplication.addEventListener(Event.NETWORK_CHANGE, onNetworkChange);
+			}
+			
+			protected function onNetworkChange(event : Event) : void
+			{
+				if( checkForWIFI() )
+				{
+					getCachedDataInformation();
+				}
+			}
+			
+			private function checkForWIFI():Boolean
+			{
+				var interfaces:Vector.<NetworkInterface> = NetworkInfo.networkInfo.findInterfaces();
+				for each (var networkInterface:NetworkInterface in interfaces) 
+				{
+					if(networkInterface.name.toLowerCase() == "wifi" && networkInterface.active) 
+					{
+						return true;
+					} 
+					if(networkInterface.name.toLowerCase() == "mobile" && networkInterface.active) 
+					{
+						// store the data in local database
+						return false;
+					}
+				}
+				
+				return false;
+			}
+			
+			private function getCachedDataInformation():void
+			{
+				var ml:ModelLocator = ModelLocator.getInstance();
+				var responder:DatabaseResponder = new DatabaseResponder();
+				responder.addEventListener(DatabaseEvent.ERROR_EVENT, onError);
+				responder.addEventListener(DatabaseEvent.RESULT_EVENT,onResult);				
+				ml.db.getCacheData([responder]);			
+				
+				function onError(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+				}
+				
+				function onResult(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+					var arrCacheData:Array = de.data as Array;
+					var totalRewards:int = 0;
+					if(arrCacheData)
+					{
+						if(arrCacheData.length > 0)
+						{
+							for(var i:int = 0; i < arrCacheData.length; i++)
+							{
+								uploadCachedImage(arrCacheData[i]);
+							}
+						}
+					}
+					else
+					{
+						
+					}
+				}
+			}
+			
+			private function uploadCachedImage(objCashedData:Object):void
+			{
+				if( checkForWIFI() )
+				{
+					var header:URLRequestHeader = new URLRequestHeader("accept", "application/json");
+					var url:String = uploadServiceBasURL + objCashedData.macAddress + "&latitude=" + objCashedData.lat + "&longitude=" + objCashedData.lng + "&categoryId=" + objCashedData.itemId + "&timeStamp=" + objCashedData.timeStamp;
+					var uploadRequest:URLRequest = new URLRequest(url);
+					uploadRequest.method = URLRequestMethod.POST;
+					uploadRequest.contentType = "multipart/form-data";
+					uploadRequest.requestHeaders.push(header);
+					var f:File = new File();
+					f.url = objCashedData.imagePath;
+					f.addEventListener(DataEvent.UPLOAD_COMPLETE_DATA, function(event:DataEvent):void{
+						deleteUploadedCachedData(f.url);
+						f.deleteFile();
+						
+					});
+					
+					f.upload(uploadRequest);
+				}
+			}
+			
+			private function deleteUploadedCachedData(imagePath:String):void
+			{
+				var ml:ModelLocator = ModelLocator.getInstance();
+				var responder:DatabaseResponder = new DatabaseResponder();
+				responder.addEventListener(DatabaseEvent.ERROR_EVENT, onError);
+				responder.addEventListener(DatabaseEvent.RESULT_EVENT,onResult);				
+				ml.db.deleteCachedDataWhere([responder, imagePath]);			
+				
+				function onError(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+				}
+				
+				function onResult(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+				}
+			}
+		]]>
+	</fx:Script>
+</s:ViewNavigatorApplication>

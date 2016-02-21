@@ -1,0 +1,660 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" actionBarVisible="false"
+		initialize="init()" xmlns:components="components.*">
+	<fx:Script>
+		<![CDATA[
+			import com.distriqt.extension.webp.WebP;
+			
+			import flash.sensors.Geolocation;
+			
+			import mx.collections.ArrayCollection;
+			import mx.graphics.codec.JPEGEncoder;
+			import mx.utils.UIDUtil;
+			
+			import ane.ANEFunctions;
+			
+			import database.DatabaseEvent;
+			import database.DatabaseResponder;
+			
+			import dto.CacheData;
+			import dto.Rewards;
+			
+			import model.ModelLocator;
+			
+			import pl.mateuszmackowiak.nativeANE.progress.NativeProgress;
+			import pl.mateuszmackowiak.nativeANE.toast.Toast;
+			
+			private var cam:CameraUI;
+			private var file:File;
+			private var geo:Geolocation;
+			private var lat:String = "0";
+			private var lng:String = "0"; 
+			private var selectedItemId:Number;
+			private var selectedItemName:String;
+			private var selectedItemRewards:Number;
+			private var _isDemoMode:Boolean = true;
+			private var capturedImageBytes:ByteArray;
+			
+			private var arrItems:ArrayCollection = new ArrayCollection([
+				{itemName: "Breakfast", rewards: "0", itemId: "1"},
+				{itemName: "Shampoo", rewards: "0", itemId: "2"}]);
+			
+			private var macAdress:String;
+			
+			private function init():void
+			{
+				checkDeviceData();
+				getRewardsInformation();
+				getCachedData();
+				loadSampleImage();
+			}
+			
+			private function insertDataIntoDatabase():void
+			{
+				var ml:ModelLocator = ModelLocator.getInstance();
+				var responder:DatabaseResponder = new DatabaseResponder();
+				responder.addEventListener(DatabaseEvent.ERROR_EVENT, onError);
+				responder.addEventListener(DatabaseEvent.RESULT_EVENT,onResult);				
+				ml.db.insertInitialData([responder]);			
+				
+				function onError(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+				}
+				
+				function onResult(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+				}
+			}
+			
+			
+			private function checkDeviceData():void
+			{
+				//check if the data is already there
+				var ml:ModelLocator = ModelLocator.getInstance();
+				var responder:DatabaseResponder = new DatabaseResponder();
+				responder.addEventListener(DatabaseEvent.ERROR_EVENT, onError);
+				responder.addEventListener(DatabaseEvent.RESULT_EVENT,onResult);				
+				ml.db.getDeviceData([responder]);			
+				
+				function onError(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+				}
+				
+				function onResult(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+					var arrDeviceIds:Array = de.data as Array;
+					if(arrDeviceIds)
+					{
+						Snap2Buy.deviceUUID = arrDeviceIds[0].udid;
+					}
+					else
+					{
+						insertDeviceData();
+					}
+				}
+			}
+			
+			private function insertDeviceData():void
+			{
+				var ml:ModelLocator = ModelLocator.getInstance();
+				var responder:DatabaseResponder = new DatabaseResponder();
+				var udid:String = UIDUtil.createUID();
+				Snap2Buy.deviceUUID = udid;
+				responder.addEventListener(DatabaseEvent.ERROR_EVENT, onError);
+				responder.addEventListener(DatabaseEvent.RESULT_EVENT,onResult);				
+				
+				ml.db.insertDeviceData([responder, udid]);			
+				
+				function onError(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+				}
+				
+				function onResult(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+				}
+			}
+			
+			protected function menuItem_clickHandler(event:MouseEvent):void
+			{/*
+				if(!_isDemoMode)
+				{
+				var obj:Object = new Object();
+				var objRewards:Rewards = new Rewards();
+				selectedItemName = arrItems.getItemAt(Number(event.target.name)).itemName;
+				selectedItemId = int(arrItems.getItemAt(Number(event.target.name)).itemId);
+				selectedItemRewards = int(arrItems.getItemAt(Number(event.target.name)).rewards);
+				
+				startCamera();
+				}
+				else
+				{
+				navigator.pushView(DemoShelf, imgPreview.source);
+				}
+				*/
+				var obj:Object = new Object();
+				var objRewards:Rewards = new Rewards();
+				selectedItemName = arrItems.getItemAt(Number(event.target.name)).itemName;
+				selectedItemId = int(arrItems.getItemAt(Number(event.target.name)).itemId);
+				selectedItemRewards = int(arrItems.getItemAt(Number(event.target.name)).rewards);
+				
+				startCamera();
+			}
+			
+			private function startCamera():void
+			{
+				if(CameraUI.isSupported)
+				{
+					// GET lat and lng values every time user starts the camera
+					getDeviceInformation();
+					
+					cam = new CameraUI();
+					cam.addEventListener(MediaEvent.COMPLETE, onImageCaptured);
+					cam.addEventListener(Event.CANCEL, onCancel);
+					cam.launch(MediaType.IMAGE);
+				}
+				else
+				{
+				}
+			}
+			
+			private function onCancel(event:Event):void
+			{
+				cam.removeEventListener(MediaEvent.COMPLETE, onImageCaptured);
+				cam.removeEventListener(Event.CANCEL, onCancel);
+			}
+			
+			private var cacheData:CacheData;
+			private var dataSource:IDataInput;
+			private function onImageCaptured(event:MediaEvent):void
+			{
+				cam.removeEventListener(MediaEvent.COMPLETE, onImageCaptured);
+				cam.removeEventListener(Event.CANCEL, onCancel);
+				
+				
+				if(_isDemoMode)
+				{
+					file = event.data.file;
+					file.addEventListener(DataEvent.UPLOAD_COMPLETE_DATA, onUploadComplete);
+					file.addEventListener(IOErrorEvent.IO_ERROR, onUploadError);
+					if( validateBeforeUpload() )
+					{
+						cacheData = new CacheData();
+						cacheData.lat = lat;
+						cacheData.lng = lng;
+						cacheData.timeStamp = new Date().getTime().toString();
+						cacheData.userId = macAdress;
+						cacheData.itemId = selectedItemId;
+						cacheData.itemName = selectedItemName;
+						cacheData.macAddress = macAdress;
+						
+						
+						if( checkForWIFI() )
+						{
+							ANEFunctions.openProgressPopup(NativeProgress.STYLE_SPINNER, "Uploading Image", "Please wait...");
+							var header:URLRequestHeader = new URLRequestHeader("accept", "application/json");
+							var url:String = "http://ec2-52-25-175-37.us-west-2.compute.amazonaws.com:8080/Snap2Pay-1.0/service/S2P/saveImage?userId=" + macAdress + "&latitude=" + lat + "&longitude=" + lng + "&categoryId=" + selectedItemId + "&timeStamp=" + cacheData.timeStamp + "&sync=true";
+							var uploadRequest:URLRequest = new URLRequest(url);
+							uploadRequest.method = URLRequestMethod.POST;
+							uploadRequest.contentType = "multipart/form-data";
+							uploadRequest.requestHeaders.push(header);
+							
+							/*var compresedBytes:ByteArray = compressBytes(event.data.file.data);
+							
+							var outStream:FileStream = new FileStream();  
+							outStream.open(file, FileMode.WRITE); 
+							outStream.writeBytes(compresedBytes, 0, compresedBytes.length);
+							outStream.close();
+							*/
+							file.upload(uploadRequest);
+						}
+						else
+						{
+							cacheData.imagePath = file.url;
+							insertCacheData();
+							
+							//Update rewards
+							updateRewardsatabase();
+							
+							//Show toast that the data is inserted to database
+							ANEFunctions.showToast("You are not connected to WIFI! Photos will be uploaded once you connect to WIFI.", Toast.LENGTH_LONG);
+						}
+					}
+					else
+					{
+						ANEFunctions.callAlert("Something is missing", "Please enable the location services and try again.");
+					}
+					
+					
+					var imagePromise:MediaPromise = event.data;
+					dataSource = imagePromise.open();
+					if( imagePromise.isAsync )
+					{
+						trace( "Asynchronous media promise." );
+						var eventSource:IEventDispatcher = dataSource as IEventDispatcher;            
+						eventSource.addEventListener( Event.COMPLETE, onMediaLoaded );         
+					}
+					else
+					{
+						trace( "Synchronous media promise." );
+						readMediaData();
+					}
+				}
+				else
+				{
+					var imagePromise:MediaPromise = event.data;
+					dataSource = imagePromise.open();
+					if( imagePromise.isAsync )
+					{
+						trace( "Asynchronous media promise." );
+						var eventSource:IEventDispatcher = dataSource as IEventDispatcher;            
+						eventSource.addEventListener( Event.COMPLETE, onMediaLoaded );         
+					}
+					else
+					{
+						trace( "Synchronous media promise." );
+						readMediaData();
+					}
+				}
+			}
+			
+			private function onMediaLoaded( event:Event ):void
+			{
+				trace("Media load complete");
+				readMediaData();
+			}
+			
+			
+			private function compressBytes(imageData:ByteArray):ByteArray
+			{
+				var loader:Loader = new Loader();
+				loader.loadBytes(imageData);
+				
+				var jpg:JPEGEncoder = new JPEGEncoder(20);
+				var encodedImage:ByteArray = jpg.encodeByteArray(imageData, loader.width, loader.height);
+				
+				return encodedImage;
+			}
+			
+			
+			private function readMediaData():void
+			{
+				capturedImageBytes = new ByteArray();
+				dataSource.readBytes( capturedImageBytes );
+				
+				//var objToPass:Object = new Object();
+				//objToPass.capturedImage = capturedImageBytes;
+				// This is for the demo mode
+				
+				//navigator.pushView(DemoShelf, objToPass);
+			}
+			
+			private function insertCacheData():void
+			{
+				var ml:ModelLocator = ModelLocator.getInstance();
+				var responder:DatabaseResponder = new DatabaseResponder();
+				responder.addEventListener(DatabaseEvent.ERROR_EVENT, onError);
+				responder.addEventListener(DatabaseEvent.RESULT_EVENT,onResult);				
+				ml.db.insertCacheData([responder, cacheData]);			
+				
+				function onError(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+				}
+				
+				function onResult(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+				}
+			}
+			
+			private function checkForWIFI():Boolean
+			{
+				/*
+				var interfaces:Vector.<NetworkInterface> = NetworkInfo.networkInfo.findInterfaces();
+				for each (var networkInterface:NetworkInterface in interfaces) 
+				{
+				if(networkInterface.name.toLowerCase() == "wifi" && networkInterface.active) 
+				{
+				return true;
+				} 
+				if(networkInterface.name.toLowerCase() == "mobile" && networkInterface.active) 
+				{
+				// store the data in local database
+				return false;
+				}
+				}
+				
+				return false;
+				*/
+				return true;
+			}
+			
+			private function updateRewardsatabase():void
+			{
+				var ml:ModelLocator = ModelLocator.getInstance();
+				var responder:DatabaseResponder = new DatabaseResponder();
+				responder.addEventListener(DatabaseEvent.ERROR_EVENT, onError);
+				responder.addEventListener(DatabaseEvent.RESULT_EVENT,onResult);				
+				var rewards:Rewards = new Rewards();
+				rewards.itemName = selectedItemName;
+				rewards.rewards = selectedItemRewards + 1;
+				ml.db.updateRewards([responder, rewards]);			
+				
+				function onError(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+				}
+				
+				function onResult(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+					getRewardsInformation();
+				}
+			}
+			
+			private function onUploadComplete(event:DataEvent):void
+			{
+				//var dummyData:String = '{"MetaInfo":{"headers":"UPC, Left_Top_X, Left_Top_Y, Width, Height, Promotion, Price, Price_Flag","latitude":"90","filePath":"","responseMessage":"Image Stored Successfully","userId":"keerthana","categoryId":"10","TimeStamp":"-9","longitude":"122","responseCode":"200"},"ResultSet":{"row":[{"UPC":"884912017864","Left_Top_X":"0","Left_Top_Y":"0","Width":"365","Height":"473","Promotion":"Y","Price":"4.9"},{"UPC":"884912017864","Left_Top_X":"356","Left_Top_Y":"0","Width":"411","Height":"482","Promotion":"Y","Price":"4.9"},{"UPC":"884912005632","Left_Top_X":"786","Left_Top_Y":"0","Width":"318","Height":"469","Promotion":"Y","Price":"2.5"},{"UPC":"884912005632","Left_Top_X":"1109","Left_Top_Y":"0","Width":"366","Height":"469","Promotion":"Y","Price":"2.5"},{"UPC":"038000576287","Left_Top_X":"1749","Left_Top_Y":"0","Width":"391","Height":"551","Promotion":"N","Price":"4.5"},{"UPC":"884912112217","Left_Top_X":"0","Left_Top_Y":"630","Width":"210","Height":"537","Promotion":"N","Price":"1.9"},{"UPC":"884912112217","Left_Top_X":"205","Left_Top_Y":"630","Width":"386","Height":"601","Promotion":"N","Price":"1.9"},{"UPC":"038000596827","Left_Top_X":"596","Left_Top_Y":"654","Width":"356","Height":"528","Promotion":"N","Price":"3.5"},{"UPC":"038000318290","Left_Top_X":"943","Left_Top_Y":"679","Width":"317","Height":"493","Promotion":"N","Price":"2.5"},{"UPC":"038000318344","Left_Top_X":"1270","Left_Top_Y":"630","Width":"391","Height":"601","Promotion":"N","Price":"2.1"},{"UPC":"038000318344","Left_Top_X":"1666","Left_Top_Y":"640","Width":"278","Height":"571","Promotion":"N","Price":"2.1"},{"UPC":"038000318344","Left_Top_X":"1964","Left_Top_Y":"630","Width":"391","Height":"601","Promotion":"N","Price":"2.1"},{"UPC":"038000318290","Left_Top_X":"1109","Left_Top_Y":"1324","Width":"391","Height":"601","Promotion":"Y","Price":"2.5"},{"UPC":"038000318290","Left_Top_X":"1431","Left_Top_Y":"1324","Width":"391","Height":"601","Promotion":"Y","Price":"2.5"},{"UPC":"884912003911","Left_Top_X":"29","Left_Top_Y":"2066","Width":"322","Height":"494","Promotion":"N","Price":"1.9"},{"UPC":"884912003911","Left_Top_X":"376","Left_Top_Y":"2066","Width":"322","Height":"494","Promotion":"N","Price":"1.9"},{"UPC":"884912003911","Left_Top_X":"679","Left_Top_Y":"2066","Width":"322","Height":"494","Promotion":"N","Price":"1.9"},{"UPC":"038000576249","Left_Top_X":"1001","Left_Top_Y":"2018","Width":"391","Height":"601","Promotion":"Y","Price":"2.5"},{"UPC":"038000576249","Left_Top_X":"1373","Left_Top_Y":"2066","Width":"322","Height":"494","Promotion":"Y","Price":"2.5"},{"UPC":"038000576348","Left_Top_X":"1641","Left_Top_Y":"2018","Width":"391","Height":"601","Promotion":"N","Price":"1.6"},{"UPC":"038000576348","Left_Top_X":"2018","Left_Top_Y":"2018","Width":"390","Height":"601","Promotion":"N","Price":"1.6"},{"UPC":"884912003911","Left_Top_X":"43","Left_Top_Y":"2658","Width":"391","Height":"601","Promotion":"Y","Price":"1.9"},{"UPC":"884912003911","Left_Top_X":"420","Left_Top_Y":"2658","Width":"386","Height":"601","Promotion":"Y","Price":"1.9"},{"UPC":"038000318467","Left_Top_X":"781","Left_Top_Y":"2628","Width":"367","Height":"562","Promotion":"N","Price":"2.9"},{"UPC":"038000318467","Left_Top_X":"1153","Left_Top_Y":"2687","Width":"293","Height":"537","Promotion":"N","Price":"2.9"},{"UPC":"038000318467","Left_Top_X":"1431","Left_Top_Y":"2604","Width":"391","Height":"601","Promotion":"N","Price":"2.9"},{"UPC":"038000786471","Left_Top_X":"1817","Left_Top_Y":"2746","Width":"298","Height":"483","Promotion":"N","Price":"2.9"}]}}';
+				file.removeEventListener(DataEvent.UPLOAD_COMPLETE_DATA, onUploadComplete);
+				var f:File = new File();
+				f.url = file.url;
+				f.deleteFile();
+				ANEFunctions.closeProgressPopUp();
+				updateRewardsatabase();
+				
+				if(_isDemoMode)
+				{
+					var objToPass:Object = new Object();
+					objToPass.capturedImage = capturedImageBytes;
+					objToPass.matadata = JSON.parse(event.data);
+					//objToPass.matadata = JSON.parse(dummyData);
+					navigator.pushView(DemoShelf, objToPass);
+				}
+			}
+			private function onUploadError(event:IOErrorEvent):void
+			{
+				file.removeEventListener(IOErrorEvent.IO_ERROR, onUploadError);
+				ANEFunctions.closeProgressPopUp();
+				
+				//cacheData.imagePath = file.url;
+				//insertCacheData();
+				
+				// Update the rewards database
+				//updateRewardsatabase();
+				
+				ANEFunctions.callAlert("Error", "Don't worry it's a server problem and we are fixing it, your data is saved and will be uploaded with your next upload");
+			}
+			
+			private function getDeviceInformation():void
+			{
+				macAdress = Snap2Buy.deviceUUID;
+				
+				// GEO LOCATION
+				if (Geolocation.isSupported) 
+				{ 
+					geo = new Geolocation(); 
+					if (!geo.muted) 
+					{ 
+						geo.addEventListener(GeolocationEvent.UPDATE, geoUpdateHandler); 
+					}
+					else
+					{
+						// show toast for activating the location
+						geo.addEventListener(StatusEvent.STATUS, geoStatusHandler);
+					}
+				} 
+				else 
+				{ 
+					// Toast that geoLocation is not supported
+				} 
+			}
+			
+			private function getRewardsInformation():void
+			{
+				var ml:ModelLocator = ModelLocator.getInstance();
+				var responder:DatabaseResponder = new DatabaseResponder();
+				responder.addEventListener(DatabaseEvent.ERROR_EVENT, onError);
+				responder.addEventListener(DatabaseEvent.RESULT_EVENT,onResult);				
+				ml.db.getRewards([responder]);			
+				
+				function onError(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+				}
+				
+				function onResult(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+					var arrRewards:Array = de.data as Array;
+					var totalRewards:int = 0;
+					if(arrRewards)
+					{
+						if(arrRewards.length > 0)
+						{
+							for(var i:int = 0; i < arrRewards.length; i++)
+							{
+								if( arrRewards[i].itemName == "Breakfast" )
+								{
+									arrItems.getItemAt(0).rewards = arrRewards[i].rewards
+								}
+								if( arrRewards[i].itemName == "Shampoo" )
+								{
+									arrItems.getItemAt(1).rewards = arrRewards[i].rewards;
+								}
+								
+								totalRewards = totalRewards + arrRewards[i].rewards;
+								
+								currentPointsRect.percentWidth = totalRewards;
+								lblPointIndicator.text = totalRewards.toString() + " pts";
+							}
+						}
+					}
+					else
+					{
+						insertDataIntoDatabase();
+						
+						if(totalRewards >= 100)
+							currentPointsRect.right = 1;
+						else							
+							currentPointsRect.percentWidth = totalRewards;
+						
+						lblPointIndicator.text = totalRewards.toString() + " pts";
+					}
+				}
+			}
+			
+			public function geoUpdateHandler(event:GeolocationEvent):void 
+			{ 
+				geo.removeEventListener(GeolocationEvent.UPDATE, geoUpdateHandler); 
+				geo.removeEventListener(StatusEvent.STATUS, geoStatusHandler);
+				lat = event.latitude.toString();
+				lng = event.longitude.toString();
+			} 
+			
+			public function geoStatusHandler(event:StatusEvent):void 
+			{ 
+				if (geo.muted)
+					geo.removeEventListener(GeolocationEvent.UPDATE, geoUpdateHandler);
+				else
+					geo.addEventListener(GeolocationEvent.UPDATE, geoUpdateHandler);
+			}
+			
+			private function validateBeforeUpload():Boolean
+			{
+				if(lat == "" || lng == "")
+					return false;
+				
+				return true;
+			}
+			
+			protected function demoCheck_changeHandler(event:Event):void
+			{
+				/*
+					// TODO Auto-generated method stub
+					if(demoCheck.selected)
+						_isDemoMode = true;
+					else
+						_isDemoMode = false;
+				*/
+			}
+			
+			private function loadSampleImage():void
+			{
+				if (WebP.isSupported)
+				{
+					// Find a file packaged with the application
+					//var file:File = File.applicationDirectory.resolvePath( "image.webp" );
+					var file:File = File.applicationDirectory.resolvePath( "assets/images/sampleShelf.webp" );
+					var fs:FileStream = new FileStream();
+					fs.open( file, FileMode.READ );
+					var data:ByteArray = new ByteArray();
+					fs.readBytes( data, 0, fs.bytesAvailable );
+					fs.close();
+					
+					var decodedData:ByteArray = new ByteArray();
+					
+					var success:Boolean = WebP.service.parseWebP( data, decodedData );
+					
+					if (success) 
+					{
+						var rect:Rectangle = new Rectangle( 0, 0, WebP.service.width, WebP.service.height );
+						var bd:BitmapData = new BitmapData( WebP.service.width, WebP.service.height, true );
+						bd.setPixels( rect, decodedData );
+						
+						imgPreview.source = new Bitmap(bd);
+					}
+				}
+			}
+			
+			private function getCachedData():void
+			{
+				var ml:ModelLocator = ModelLocator.getInstance();
+				var responder:DatabaseResponder = new DatabaseResponder();
+				responder.addEventListener(DatabaseEvent.ERROR_EVENT, onError);
+				responder.addEventListener(DatabaseEvent.RESULT_EVENT,onResult);				
+				ml.db.getCacheData([responder]);			
+				
+				function onError(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+				}
+				
+				function onResult(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+					var arrCache:Array = de.data as Array;
+					if(arrCache)
+					{
+						for(var i:int = 0; i < arrCache.length; i++)
+						{
+							var f:File = new File(arrCache[i].imagePath);
+							f.addEventListener(DataEvent.UPLOAD_COMPLETE_DATA, onCacheUploadComplete);
+							f.addEventListener(IOErrorEvent.IO_ERROR, onCacheUploadError);
+							ANEFunctions.openProgressPopup(NativeProgress.STYLE_SPINNER, "Uploading Image", "Please wait...");
+							var header:URLRequestHeader = new URLRequestHeader("accept", "application/json");
+							var url:String = "http://ec2-52-25-175-37.us-west-2.compute.amazonaws.com:8080/Snap2Pay-1.0/service/S2P/saveImage?userId=" + macAdress + "&latitude=" + lat + "&longitude=" + lng + "&categoryId=" + selectedItemId + "&timeStamp=" + cacheData.timeStamp;
+							var uploadRequest:URLRequest = new URLRequest(url);
+							uploadRequest.method = URLRequestMethod.POST;
+							uploadRequest.contentType = "multipart/form-data";
+							uploadRequest.requestHeaders.push(header);
+							f.upload(uploadRequest);
+						}
+					}
+				}
+			}
+			
+			private function onCacheUploadComplete(event:DataEvent):void
+			{
+				file.removeEventListener(DataEvent.UPLOAD_COMPLETE_DATA, onCacheUploadComplete);
+				var f:File = new File();
+				f.url = (event.target as File).url;
+				f.deleteFile();
+				
+				deleteFromCache( (event.target as File).url );
+			}
+			private function onCacheUploadError(event:IOErrorEvent):void
+			{
+				
+			}
+			
+			private function deleteFromCache(path:String):void
+			{
+				var ml:ModelLocator = ModelLocator.getInstance();
+				var responder:DatabaseResponder = new DatabaseResponder();
+				responder.addEventListener(DatabaseEvent.ERROR_EVENT, onError);
+				responder.addEventListener(DatabaseEvent.RESULT_EVENT,onResult);				
+				ml.db.deleteCachedDataWhere([responder, path]);			
+				
+				function onError(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+				}
+				
+				function onResult(de:DatabaseEvent):void
+				{
+					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
+					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
+				}
+			}
+			
+		]]>
+	</fx:Script>
+	<s:Group width="100%" height="100%">
+		<s:Image id="imgPreview" width="100%" height="100%" scaleMode="zoom"></s:Image>
+		<s:Rect top="0" bottom="0" left="0" right="0">
+			<s:fill>
+				<s:SolidColor color="#000000" alpha="0.85"/>
+			</s:fill>
+		</s:Rect>
+	</s:Group>
+	
+	<s:Image source="assets/images/FinalLogo_2.png" horizontalCenter="0" top="10" scaleX="0.25" scaleY="0.25"/>
+	
+	<s:VGroup top="120" horizontalCenter="0" gap="30">
+		<components:CategoryItem name="0" click="menuItem_clickHandler(event)" displayName="Breakfast / Cereals" imageSource="assets/images/Snap2Buy_Cereal.jpg"/>
+		<components:CategoryItem name="1" click="menuItem_clickHandler(event)" displayName="Shampoo / Conditioners" imageSource="assets/images/Snap2Buy_Shampoo.jpg"/>
+	</s:VGroup>
+	
+	<s:Label text="0 pt" bottom="75" left="30" styleName="pointIndicatorStyle"/>
+	<s:Label text="100 pts" bottom="75" right="25" styleName="pointIndicatorStyle"/>
+	<s:Group left="30" right="30" height="30" bottom="40">
+		<s:Rect left="0" right="0" top="0" bottom="0">
+			<s:stroke>
+				<s:SolidColorStroke color="#FFFFFF"/>
+			</s:stroke>
+		</s:Rect>
+		
+		<s:Rect id="currentPointsRect" top="1" bottom="1" left="1">
+			<s:fill>
+				<s:SolidColor color="#02abc3"/>
+			</s:fill>			
+		</s:Rect>
+	</s:Group>
+	<s:Label id="lblPointIndicator" bottom="25" left="{currentPointsRect.width + 20}" styleName="pointIndicatorStyle"/>
+	<s:Label text="$10" bottom="50" right="10" styleName="pointIndicatorStyle"/>
+	
+	<s:CheckBox id="demoCheck" top="10" right="10" change="demoCheck_changeHandler(event)" selected="true"/>
+	
+</s:View>

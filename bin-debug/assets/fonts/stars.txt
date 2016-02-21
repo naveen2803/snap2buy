@@ -1,0 +1,7 @@
+empty star: &#xe900;
+
+half star: &#xe901;
+
+filled star: &#xe902;
+
+tick : &#xe116;

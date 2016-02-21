@@ -1,0 +1,540 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:View xmlns:fx="http://ns.adobe.com/mxml/2009" 
+		xmlns:s="library://ns.adobe.com/flex/spark" actionBarVisible="false"
+		creationComplete="view1_creationCompleteHandler(event)" xmlns:local="*">
+	<fx:Declarations>
+		<!--<s:Fade id="fadePreview" target="{preview}" duration="800" alphaFrom="1" alphaTo="0"/>-->
+		
+			<s:HTTPService id="servGetProductDetails" resultFormat="text" method="GET"
+						   result="getProductDetails_resultHandler(event)" fault="getProductDetails_faultHandler(event)"/>
+		
+	</fx:Declarations>
+	<fx:Script>
+		<![CDATA[
+			import com.distriqt.extension.webp.WebP;
+			
+			import mx.core.FlexGlobals;
+			import mx.events.DragEvent;
+			import mx.events.FlexEvent;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.StringUtil;
+			
+			import ane.ANEFunctions;
+			
+			import components.EmptyStarLabel;
+			import components.FullStarLabel;
+			import components.HalfStarLabel;
+			import components.TickLabel;
+			
+			import dto.ProductDetails;
+			
+			import org.osmf.layout.ScaleMode;
+			
+			import utils.PointSet;
+			import utils.Polygon;
+			
+			private var screenHeight:Number;
+			private var screenWidth:Number;
+			private var previewHeight:Number = 150;
+			private var previewWidth:Number = 150;
+			private var pointerWidth:Number = 50;
+			private var pointerHeight:Number = 50;
+			
+			private var _arrPolygons:Array = [];
+			
+			private var actualImageWidth:Number;
+			private var actualImageHeight:Number;
+			
+			private var scaleXFactor:Number;
+			private var scaleYFactor:Number;
+			private var selectedProduct:Polygon;
+			private var isImageRotated:Boolean = false;
+			
+			[Bindable] 
+			private var _objProductDetails:ProductDetails;
+			
+			override protected function createChildren():void
+			{
+				super.createChildren();
+				
+				//loadSampleImage();
+			}
+			
+//			private var timer:Timer;
+/*			
+			protected function group1_mouseDownHandler(event:MouseEvent):void
+			{
+				box.startDrag(false, new Rectangle(0, 0, screenWidth - pointerWidth, screenHeight - pointerHeight));
+				
+				if(timer.running)
+				{
+					timer.stop();
+					timer.removeEventListener(TimerEvent.TIMER, onTimerComplete);
+				}
+				
+				if(fadePreview.isPlaying)
+					fadePreview.stop();
+				
+				preview.alpha = 1;
+			}
+			
+			protected function group1_mouseUpHandler(event:MouseEvent):void
+			{
+				box.stopDrag();
+				
+				timer.addEventListener(TimerEvent.TIMER, onTimerComplete);
+				timer.start();
+			}
+/*/			
+			protected function view1_creationCompleteHandler(event:FlexEvent):void
+			{
+//				timer = new Timer(3000,1);
+				
+				//processData();
+				
+				img.addEventListener(FlexEvent.UPDATE_COMPLETE, onUpdateComplete);
+			}
+			
+			private function loadSampleImage():void
+			{
+				
+				
+				
+//				if (WebP.isSupported)
+//				{
+//					
+//					// Find a file packaged with the application
+//					//var file:File = File.applicationDirectory.resolvePath( "image.webp" );
+//					var file:File = File.applicationDirectory.resolvePath( "assets/images/sampleShelf.webp" );
+//					var fs:FileStream = new FileStream();
+//					fs.open( file, FileMode.READ );
+//					var data:ByteArray = new ByteArray();
+//					fs.readBytes( data, 0, fs.bytesAvailable );
+//					fs.close();
+//					
+//					var decodedData:ByteArray = new ByteArray();
+//					
+//					var success:Boolean = WebP.service.parseWebP( data, decodedData );
+//					var rect:Rectangle = new Rectangle( 0, 0, WebP.service.width, WebP.service.height );
+//					var bd:BitmapData = new BitmapData( WebP.service.width, WebP.service.height, true );
+//					bd.setPixels( rect, decodedData );
+//					img.source = new Bitmap(bd);
+//					
+///*					
+//					if (success) 
+//					{
+//						var rect:Rectangle = new Rectangle( 0, 0, WebP.service.width, WebP.service.height );
+//						var bd:BitmapData = new BitmapData( WebP.service.width, WebP.service.height, true );
+//						bd.setPixels( rect, decodedData );
+//						
+//						imgPreview.source = new Bitmap(bd);
+//						img.source = new Bitmap(bd);
+//						
+//						screenWidth = FlexGlobals.topLevelApplication.width;
+//						screenHeight = FlexGlobals.topLevelApplication.height;
+//						
+//						box.cacheAsBitmap = true;
+//						box.cacheAsBitmapMatrix = new Matrix();
+//						
+//						scaleYFactor = actualImageHeight / (img.height * 2);
+//						scaleXFactor = actualImageWidth / (img.width * 2);
+//						
+//						//imgPreview.scaleX = scaleXFactor;
+//						//imgPreview.scaleY = scaleYFactor;
+//						
+//						imgPreview.height = img.height * 2;
+//						imgPreview.width = img.width * 2;
+//					}
+//*/					
+//				}
+			}
+/*			
+			protected function box_mouseMoveHandler(event:MouseEvent):void
+			{
+				box.x = box.mx_internal::$x;
+				box.y = box.mx_internal::$y;
+				
+				if( (box.x + previewWidth + pointerWidth) <= screenWidth) // preview to the right
+					preview.x = box.x + pointerWidth;
+				else // preview to the left
+					preview.x = box.x - previewWidth;
+				
+				if( (box.y + previewHeight + pointerHeight) <= screenHeight) // preview to the bottom
+					preview.y = box.y + pointerHeight;
+				else // preview to the top
+					preview.y = box.y - previewHeight;
+				
+				preview.scrollRect = new Rectangle(box.x*2, box.y*2, previewHeight, previewHeight);
+			}
+			
+			protected function onTimerComplete(event:TimerEvent):void
+			{
+				fadePreview.play();
+				timer.removeEventListener(TimerEvent.TIMER, onTimerComplete);
+			}
+*/			
+			protected function imgPreview_clickHandler(event:MouseEvent):void
+			{
+				//thumbnail.source = null;
+				var ratioX:Number = img.sourceWidth / img.width;
+				var ratioY:Number = img.sourceHeight / img.height;
+				var xpoint:Number;
+				var ypoint:Number;
+				
+				// for rotated image
+				if(isImageRotated)
+				{
+					var xval:Number = img.height - event.localY;  //for praveen
+					var yval:Number = event.localX;
+					xpoint = (ratioX * xval) - ratioY + 1;
+					ypoint = (ratioY * yval) - ratioX + 1;
+				}
+				else
+				{
+					xpoint = (ratioX * event.localX) - ratioY + 1;
+					ypoint = (ratioY * event.localY) - ratioX + 1;
+				}
+				
+				findPolygon(xpoint, ypoint, event.localX, event.localY);
+				//navigator.pushView(DetailsView);
+				
+			}
+			
+			private function loadImageCoordinates(imageCoordinates:String):void
+			{
+				var objJson:Object = JSON.parse(imageCoordinates);
+				
+				for(var i:int = 0; i < objJson.length; i++)
+				{
+					var objPolygon:Polygon = new Polygon();
+					objPolygon.upc = objJson[i].upc;
+					/*objPolygon.shortName = objJson[i].shortName;
+					objPolygon.longName = objJson[i].longName;
+					objPolygon.packageSize = objJson[i].packageSize;
+					objPolygon.lowFat = objJson[i].lowFat;
+					objPolygon.fatFree = objJson[i].fatFree;
+					objPolygon.glutenFree = objJson[i].glutenFree;
+					objPolygon.brandName = objJson[i].brandName;
+					objPolygon.price = objJson[i].price;
+					objPolygon.priceLabel = StringUtil.trim(objJson[i].priceLabel);
+					objPolygon.thumbnailName = StringUtil.trim(objJson[i].thumbnailName);
+					objPolygon.rating = Number(objJson[i].rating);
+					objPolygon.why1 = objJson[i].why1;
+					objPolygon.why2 = objJson[i].why2;
+					objPolygon.why3 = objJson[i].why3;
+					objPolygon.why4 = objJson[i].why4;
+					*/
+					var xPoints:Array = objJson[i].xPoints as Array;
+					var yPoints:Array = objJson[i].yPoints as Array;
+					var pl:PointSet = new PointSet();
+					
+					for(var j:int = 0; j < 4; j++)
+					{
+						var p:Point = new Point(Number(xPoints[j]), Number(yPoints[j]));
+						pl.push(p);
+					}
+					
+					objPolygon.pointSetList = pl;
+					_arrPolygons.push(objPolygon);
+				}
+			}
+			private function findPolygon(x:int, y:int, localX:int, localY:int):void
+			{
+				var p:Point = new Point(x, y);
+				for(var i:int = 0; i < _arrPolygons.length; i++)
+				{
+					// if the clicked point is defined in the regions
+					if(Polygon.pointInPolygon((_arrPolygons[i] as Polygon).pointSetList, p))
+					{
+						_objProductDetails = new ProductDetails();
+						var popUpPosition:String = "bottom"
+						if(img.height < img.width)
+						{
+							if(localY < (img.width/2))
+								popUpPosition = "top";	
+						}
+						else
+						{
+							if(localY < (img.height/2))
+								popUpPosition = "top";
+						}
+						
+						
+						selectedProduct = _arrPolygons[i] as Polygon;
+						getProductDetails(selectedProduct, popUpPosition);
+						//navigator.pushView(DetailsView, _arrPolygons[i]);
+						break;
+					}
+				}
+			}
+			
+			protected function processData():void //calcW:int, calcH:int, leftPadding:int, topPadding:int
+			{
+				var i:int = img.width;
+				
+				var ratioX:Number = img.sourceWidth / img.width;//FlexGlobals.topLevelApplication.stage.stageWidth;
+				var ratioY:Number = img.sourceHeight / img.height;//FlexGlobals.topLevelApplication.stage.stageHeight;
+				
+				var result:Object = data.matadata;
+				try
+				{
+					if ( (result.ResultSet.row as Array).length == 0)
+					{
+						ANEFunctions.callAlert("Oops!!!", result.ResultSet.row.Message);
+					}
+					else
+					{
+						var arrItems:Array = result.ResultSet.row as Array;
+						tickContainer.removeAllElements();
+						var coordinates:String = "[";
+						for(var i:int = 0; i < arrItems.length; i++)
+						{
+							var tick:TickLabel = new TickLabel();
+							
+							tick.x = int( (Number(arrItems[i].Left_Top_X) + ratioX - 1) / ratioX );
+							tick.y = int( (Number(arrItems[i].Left_Top_Y) + ratioY - 1) / ratioY );
+							tickContainer.addElement(tick);
+							
+							tickContainer.addElement(tick);
+							
+							var arrLineData:Array = String(arrItems[i]).split(",");
+							coordinates = coordinates + 
+								'{"xPoints": ["' + 
+									(Number(arrItems[i].Left_Top_X)) + '", "' + 
+									(Number(arrItems[i].Left_Top_X)  + Number(arrItems[i].Width)) + '", "' + 
+									(Number(arrItems[i].Left_Top_X)  + Number(arrItems[i].Width)) + '", "' + 
+									(Number(arrItems[i].Left_Top_X) ) + 
+								'"],' + 
+								'"yPoints": ["' +
+									(Number(arrItems[i].Left_Top_Y)) + '", "' + 
+									(Number(arrItems[i].Left_Top_Y)) + '", "' + 
+									(Number(arrItems[i].Left_Top_Y) + Number(arrItems[i].Height)) + '", "' +  
+									(Number(arrItems[i].Left_Top_Y) +Number(arrItems[i].Height)) + 
+								'"], ' +
+								'"upc": "' + arrItems[i].UPC + '"},'; /*+
+								'"thumbnailName": "' + arrLineData[4] + '", ' +
+								'"brandName": "' + arrLineData[5] + '", ' +
+								'"shortName": "' + arrLineData[6] + '", ' +
+								'"longName": "' + arrLineData[7] + '", ' +
+								'"packageSize": "' + arrLineData[8] + '", ' +
+								'"lowFat": "' + arrLineData[9] + '", ' +
+								'"fatFree": "' + arrLineData[10] + '", ' +
+								'"glutenFree": "' + arrLineData[11] + '", ' +
+								'"price": "' + arrLineData[12] + '", ' +
+								'"priceLabel": "' + arrLineData[13] + '", ' +
+								'"rating": "' + arrLineData[14] + '", ' +
+								'"why1": "' + arrLineData[15] + '", ' +
+								'"why2": "' + arrLineData[16] + '", ' +
+								'"why3": "' + arrLineData[17] + '", ' +
+								'"why4": "' + arrLineData[18] + '"},' ;*/
+								
+						}
+						
+						coordinates = coordinates.substr(0, coordinates.length-1);
+						coordinates = coordinates + "]";
+						//trace(coordinates);
+						
+						loadImageCoordinates(coordinates);
+					}
+				}
+				catch(error:*)
+				{}
+			}
+			
+			protected function img_completeHandler(event:Event):void
+			{
+				
+			}
+			
+			private function onUpdateComplete(event:FlexEvent):void
+			{
+				var imgContentWidth:Number = img.transform.pixelBounds.width;
+				var imgContentHeight:Number = img.transform.pixelBounds.height;
+				var calcWidth:int = (imgContentWidth * img.height) / imgContentHeight;
+				var calcHeight:int = (imgContentHeight * img.width) / imgContentWidth;
+				var leftPadding:int = (img.width - calcWidth)/2;
+				var topPadding:int = (img.height - calcHeight)/2;
+				
+				if(imgContentHeight < imgContentWidth)
+				{
+					img.rotation = 90;
+					isImageRotated = true;
+				}
+				else
+				{
+					isImageRotated = false;
+				}
+				
+				img.scaleMode = ScaleMode.STRETCH;
+				
+				processData();
+				
+				img.removeEventListener(FlexEvent.UPDATE_COMPLETE, onUpdateComplete);
+			}
+			
+			
+			protected function getProductDetails_resultHandler(event:ResultEvent):void
+			{
+				var result:Object = JSON.parse(String(event.result));
+				_objProductDetails = new ProductDetails();
+				_objProductDetails.upc = result.ResultSet.row.upc;
+				_objProductDetails.brandName = result.ResultSet.row.brand_name;
+				_objProductDetails.attribute_1 = result.ResultSet.row.attribute_1;
+				_objProductDetails.attribute_2 = result.ResultSet.row.attribute_2;
+				_objProductDetails.longName = result.ResultSet.row.product_long_name;
+				_objProductDetails.attribute_3 = result.ResultSet.row.attribute_3;
+				_objProductDetails.attribute_4 = result.ResultSet.row.attribute_4;
+				_objProductDetails.attribute_5 = result.ResultSet.row.attribute_5;
+				_objProductDetails.price = selectedProduct.price;
+				_objProductDetails.shortName = result.ResultSet.row.product_short_name;
+				_objProductDetails.rating = result.ResultSet.row.product_rating;
+				//_objProductDetails.thumbnailName = result.ResultSet.row.thumbnail;
+				_objProductDetails.why_buy_1 = result.ResultSet.row.why_buy_1;
+				_objProductDetails.why_buy_2 = result.ResultSet.row.why_buy_2;
+				_objProductDetails.why_buy_3 = result.ResultSet.row.why_buy_3;
+				_objProductDetails.why_buy_4 = result.ResultSet.row.why_buy_4;
+				
+				thumbnail.source = "http://ec2-52-25-175-37.us-west-2.compute.amazonaws.com:8080/Snap2Pay-1.0/service/S2P/getUpcImage?upc=" + _objProductDetails.upc;
+				
+				createRating();
+				
+				//loadWebP();
+			}
+			
+			protected function getProductDetails_faultHandler(event:FaultEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			
+			private function createRating():void
+			{
+				var rating:Number = _objProductDetails.rating;
+				for(var i:int = 1; i <= 5; i++)
+				{
+					if(i <= rating)
+					{
+						ratingContainer.addElement(new FullStarLabel());
+					}
+					else
+					{
+						if( (i - rating) < 1 )
+						{
+							ratingContainer.addElement(new HalfStarLabel());
+						}
+						else
+						{
+							ratingContainer.addElement(new EmptyStarLabel());
+						}
+					}
+				}
+			}
+			
+			private function getProductDetails(p:Polygon, position:String):void
+			{
+				bg.visible = true;
+				popup.visible = true;
+				ratingContainer.removeAllElements();
+				if(position == "bottom")
+				{
+					topSpacer.percentHeight = 0;
+					bottomSpacer.percentHeight = 100;
+				}
+				else
+				{
+					topSpacer.percentHeight = 100;
+					bottomSpacer.percentHeight = 0;
+				}
+				
+				servGetProductDetails.url = "http://ec2-52-25-175-37.us-west-2.compute.amazonaws.com:8080/Snap2Pay-1.0/service/S2P/getUpcDetails?upc=" + p.upc;
+				servGetProductDetails.send();
+			}
+			
+			protected function bg_clickHandler(event:MouseEvent):void
+			{
+				bg.visible = false;
+				popup.visible = false;
+			}
+			
+		]]>
+	</fx:Script>
+	<s:Image id="img" width="100%" height="100%" verticalCenter="0" horizontalCenter="0" complete="img_completeHandler(event)" source="{data.capturedImage}" click="imgPreview_clickHandler(event)"/><!-- verticalCenter="0" horizontalCenter="0" rotation="90" updateComplete="callLater(scaledImageWidth)"  -->
+	<s:Group width="100%" height="100%" id="tickContainer"/>
+	
+	<s:Group width="100%" height="100%" id="bg" visible="false" click="bg_clickHandler(event)">
+		<s:Rect width="100%" height="100%" alpha="0.5">
+			<s:fill>
+				<s:SolidColor color="#000000"/>
+			</s:fill>
+		</s:Rect>
+	</s:Group>
+	
+	<s:VGroup width="100%" height="100%">
+		<s:Spacer id="topSpacer"/>
+		<s:Group visible="false" width="100%" height="40%" id="popup" horizontalCenter="0">
+			<s:Rect left="5" top="5" right="5" bottom="5">
+				<s:fill>
+					<s:SolidColor color="#FFFFFF"/>
+				</s:fill>
+			</s:Rect>	
+			<s:Image id="thumbnail" width="100" height="130" top="15" left="15"/>
+			<s:HGroup id="ratingContainer" top="15" left="125" gap="1" />
+			<s:VGroup left="125" top="35" right="15">
+				<s:VGroup gap="0" width="100%">
+					<s:Label text="{StringUtil.trim(_objProductDetails.longName)}"  width="100%"  styleName="productNameStyle"/>
+				</s:VGroup>
+				<s:HGroup includeInLayout="{StringUtil.trim(_objProductDetails.attribute_1) != '' ? true:false}" visible="{StringUtil.trim(_objProductDetails.attribute_1) != '' ? true:false}" >
+					<s:Label text="&#xe116;" styleName="starStyle" color="#b90404"/>
+					<s:Label text="{' ' + StringUtil.trim(_objProductDetails.attribute_1)}"  width="100%" styleName="featureStyle"/>
+				</s:HGroup>
+				<s:HGroup includeInLayout="{StringUtil.trim(_objProductDetails.attribute_2) != '' ? true:false}" visible="{StringUtil.trim(_objProductDetails.attribute_2) != '' ? true:false}">
+					<s:Label text="&#xe116;" styleName="starStyle" color="#b90404"/>
+					<s:Label text="{' ' + StringUtil.trim(_objProductDetails.attribute_2)}" width="100%"  styleName="featureStyle"/>
+				</s:HGroup>
+				<s:HGroup includeInLayout="{StringUtil.trim(_objProductDetails.attribute_3) != '' ? true:false}" visible="{StringUtil.trim(_objProductDetails.attribute_3) != '' ? true:false}" >
+					<s:Label text="&#xe116;" styleName="starStyle" color="#b90404"/>
+					<s:Label text="{' ' + StringUtil.trim(_objProductDetails.attribute_3)}"  width="100%" styleName="featureStyle"/>
+				</s:HGroup>
+				<s:HGroup includeInLayout="{StringUtil.trim(_objProductDetails.attribute_4) != '' ? true:false}" visible="{StringUtil.trim(_objProductDetails.attribute_4) != '' ? true:false}" >
+					<s:Label text="&#xe116;" styleName="starStyle" color="#b90404"/>
+					<s:Label text="{' ' + StringUtil.trim(_objProductDetails.attribute_4)}"  width="100%" styleName="featureStyle"/>
+				</s:HGroup>
+				<s:HGroup includeInLayout="{StringUtil.trim(_objProductDetails.attribute_5) != '' ? true:false}" visible="{StringUtil.trim(_objProductDetails.attribute_5) != '' ? true:false}" >
+					<s:Label text="&#xe116;" styleName="starStyle" color="#b90404"/>
+					<s:Label text="{' ' + StringUtil.trim(_objProductDetails.attribute_5)}"  width="100%" styleName="featureStyle"/>
+				</s:HGroup>
+			</s:VGroup>
+		</s:Group>
+		<s:Spacer id="bottomSpacer"/>
+	</s:VGroup>
+	
+	<!--<s:Rect left="0" right="0" bottom="0" top="0">
+		<s:fill>
+			<s:SolidColor color="#000000" alpha="0.3"/>
+		</s:fill>
+	</s:Rect>
+	-->
+	<!--
+	<s:Group width="{previewWidth}" height="{previewHeight}" id="preview" clipAndEnableScrolling="true">
+		<s:Image id="imgPreview"  click="imgPreview_clickHandler(event)" ></s:Image> 
+	</s:Group>
+	-->
+	<!--
+	<s:Group width="100%" height="100%">
+		<s:Group id="box" mouseMove="box_mouseMoveHandler(event)" x="80" y="100"
+				 width="{pointerWidth}" height="{pointerHeight}" mouseDown="group1_mouseDownHandler(event)" mouseUp="group1_mouseUpHandler(event)"
+				 >
+			<s:Rect radiusX="{pointerWidth/2}" radiusY="{pointerHeight/2}" width="{pointerWidth}" height="{pointerHeight}" alpha="0.7">
+				<s:fill>
+					<s:SolidColor color="#04212F"/>
+				</s:fill>
+				<s:stroke>
+					<s:SolidColorStroke color="#00ECFA"/>
+				</s:stroke>
+			</s:Rect>
+			<s:Label verticalCenter="0" horizontalCenter="0" text="&#xe603;" styleName="handIconStyle"/>
+		</s:Group>
+	</s:Group>
+	-->
+</s:View>

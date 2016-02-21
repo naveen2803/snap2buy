@@ -1,0 +1,260 @@
+{
+    "MetaInfo": {
+        "headers": "UPC, Left_Top_X, Left_Top_Y, Width, Height, Promotion, Price, Price_Flag",
+        "latitude": "90",
+        "filePath": "",
+        "responseMessage": "Image Stored Successfully",
+        "userId": "keerthana",
+        "categoryId": "10",
+        "TimeStamp": "-9",
+        "longitude": "122",
+        "responseCode": "200"
+    },
+    "ResultSet": {
+        "row": [
+            {
+                "UPC": "884912017864",
+                "Left_Top_X": "0",
+                "Left_Top_Y": "0",
+                "Width": "365",
+                "Height": "473",
+                "Promotion": "Y",
+                "Price": "4.9"
+            },
+            {
+                "UPC": "884912017864",
+                "Left_Top_X": "356",
+                "Left_Top_Y": "0",
+                "Width": "411",
+                "Height": "482",
+                "Promotion": "Y",
+                "Price": "4.9"
+            },
+            {
+                "UPC": "884912005632",
+                "Left_Top_X": "786",
+                "Left_Top_Y": "0",
+                "Width": "318",
+                "Height": "469",
+                "Promotion": "Y",
+                "Price": "2.5"
+            },
+            {
+                "UPC": "884912005632",
+                "Left_Top_X": "1109",
+                "Left_Top_Y": "0",
+                "Width": "366",
+                "Height": "469",
+                "Promotion": "Y",
+                "Price": "2.5"
+            },
+            {
+                "UPC": "038000576287",
+                "Left_Top_X": "1749",
+                "Left_Top_Y": "0",
+                "Width": "391",
+                "Height": "551",
+                "Promotion": "N",
+                "Price": "4.5"
+            },
+            {
+                "UPC": "884912112217",
+                "Left_Top_X": "0",
+                "Left_Top_Y": "630",
+                "Width": "210",
+                "Height": "537",
+                "Promotion": "N",
+                "Price": "1.9"
+            },
+            {
+                "UPC": "884912112217",
+                "Left_Top_X": "205",
+                "Left_Top_Y": "630",
+                "Width": "386",
+                "Height": "601",
+                "Promotion": "N",
+                "Price": "1.9"
+            },
+            {
+                "UPC": "038000596827",
+                "Left_Top_X": "596",
+                "Left_Top_Y": "654",
+                "Width": "356",
+                "Height": "528",
+                "Promotion": "N",
+                "Price": "3.5"
+            },
+            {
+                "UPC": "038000318290",
+                "Left_Top_X": "943",
+                "Left_Top_Y": "679",
+                "Width": "317",
+                "Height": "493",
+                "Promotion": "N",
+                "Price": "2.5"
+            },
+            {
+                "UPC": "038000318344",
+                "Left_Top_X": "1270",
+                "Left_Top_Y": "630",
+                "Width": "391",
+                "Height": "601",
+                "Promotion": "N",
+                "Price": "2.1"
+            },
+            {
+                "UPC": "038000318344",
+                "Left_Top_X": "1666",
+                "Left_Top_Y": "640",
+                "Width": "278",
+                "Height": "571",
+                "Promotion": "N",
+                "Price": "2.1"
+            },
+            {
+                "UPC": "038000318344",
+                "Left_Top_X": "1964",
+                "Left_Top_Y": "630",
+                "Width": "391",
+                "Height": "601",
+                "Promotion": "N",
+                "Price": "2.1"
+            },
+            {
+                "UPC": "038000318290",
+                "Left_Top_X": "1109",
+                "Left_Top_Y": "1324",
+                "Width": "391",
+                "Height": "601",
+                "Promotion": "Y",
+                "Price": "2.5"
+            },
+            {
+                "UPC": "038000318290",
+                "Left_Top_X": "1431",
+                "Left_Top_Y": "1324",
+                "Width": "391",
+                "Height": "601",
+                "Promotion": "Y",
+                "Price": "2.5"
+            },
+            {
+                "UPC": "884912003911",
+                "Left_Top_X": "29",
+                "Left_Top_Y": "2066",
+                "Width": "322",
+                "Height": "494",
+                "Promotion": "N",
+                "Price": "1.9"
+            },
+            {
+                "UPC": "884912003911",
+                "Left_Top_X": "376",
+                "Left_Top_Y": "2066",
+                "Width": "322",
+                "Height": "494",
+                "Promotion": "N",
+                "Price": "1.9"
+            },
+            {
+                "UPC": "884912003911",
+                "Left_Top_X": "679",
+                "Left_Top_Y": "2066",
+                "Width": "322",
+                "Height": "494",
+                "Promotion": "N",
+                "Price": "1.9"
+            },
+            {
+                "UPC": "038000576249",
+                "Left_Top_X": "1001",
+                "Left_Top_Y": "2018",
+                "Width": "391",
+                "Height": "601",
+                "Promotion": "Y",
+                "Price": "2.5"
+            },
+            {
+                "UPC": "038000576249",
+                "Left_Top_X": "1373",
+                "Left_Top_Y": "2066",
+                "Width": "322",
+                "Height": "494",
+                "Promotion": "Y",
+                "Price": "2.5"
+            },
+            {
+                "UPC": "038000576348",
+                "Left_Top_X": "1641",
+                "Left_Top_Y": "2018",
+                "Width": "391",
+                "Height": "601",
+                "Promotion": "N",
+                "Price": "1.6"
+            },
+            {
+                "UPC": "038000576348",
+                "Left_Top_X": "2018",
+                "Left_Top_Y": "2018",
+                "Width": "390",
+                "Height": "601",
+                "Promotion": "N",
+                "Price": "1.6"
+            },
+            {
+                "UPC": "884912003911",
+                "Left_Top_X": "43",
+                "Left_Top_Y": "2658",
+                "Width": "391",
+                "Height": "601",
+                "Promotion": "Y",
+                "Price": "1.9"
+            },
+            {
+                "UPC": "884912003911",
+                "Left_Top_X": "420",
+                "Left_Top_Y": "2658",
+                "Width": "386",
+                "Height": "601",
+                "Promotion": "Y",
+                "Price": "1.9"
+            },
+            {
+                "UPC": "038000318467",
+                "Left_Top_X": "781",
+                "Left_Top_Y": "2628",
+                "Width": "367",
+                "Height": "562",
+                "Promotion": "N",
+                "Price": "2.9"
+            },
+            {
+                "UPC": "038000318467",
+                "Left_Top_X": "1153",
+                "Left_Top_Y": "2687",
+                "Width": "293",
+                "Height": "537",
+                "Promotion": "N",
+                "Price": "2.9"
+            },
+            {
+                "UPC": "038000318467",
+                "Left_Top_X": "1431",
+                "Left_Top_Y": "2604",
+                "Width": "391",
+                "Height": "601",
+                "Promotion": "N",
+                "Price": "2.9"
+            },
+            {
+                "UPC": "038000786471",
+                "Left_Top_X": "1817",
+                "Left_Top_Y": "2746",
+                "Width": "298",
+                "Height": "483",
+                "Promotion": "N",
+                "Price": "2.9"
+            }
+        ]
+    }
+}

@@ -1,0 +1,10 @@
+camera: &#xe600;
+
+filter: &#xe601;
+
+favourite: &#xe602;
+
+hand: &#xe603;
+
+offer: &#xe604;
+
