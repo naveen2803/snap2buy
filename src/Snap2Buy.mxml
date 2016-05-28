@@ -4,11 +4,16 @@
 							firstView="views.Snap2BuyHomeView" applicationDPI="160"
 							initialize="initDatabase()"
 							splashScreenImage="MySplashScreen"
-							splashScreenScaleMode="zoom">
+							splashScreenScaleMode="zoom"
+							creationComplete="getDeviceInformation()"
+							activate="view1_activateHandler(event)" 
+							deactivate="view1_deactivateHandler(event)">
 	<fx:Style source="assets/css/main.css"/>
 	<fx:Script>
 		<![CDATA[
 			import com.distriqt.extension.webp.WebP;
+			
+			import flash.sensors.Geolocation;
 			
 			import database.Database;
 			import database.DatabaseEvent;
@@ -18,8 +23,16 @@
 			
 			import model.ModelLocator;
 			
+			import views.Snap2BuyHomeView;
+			private var geo:Geolocation;
+			public static var gpsSensorsActive:Boolean = false;
+			public static var lat:String = "0";
+			public static var lng:String = "0";
+			
+			private var baseUrl:String = "http://snap2buy.com:8080/Snap2Buy-1.0/service/S2B/";
+			
 			public static var deviceUUID:String = "";
-			private var uploadServiceBasURL:String = "http://ec2-52-25-175-37.us-west-2.compute.amazonaws.com:8080/Snap2Pay-1.0/service/S2P/saveImage?userId=";
+			private var uploadServiceBasURL:String = baseUrl + "saveImage?sync=true&userId=";
 			
 			private function initDatabase():void
 			{
@@ -118,7 +131,7 @@
 					}
 					else
 					{
-						
+							
 					}
 				}
 			}
@@ -164,6 +177,59 @@
 					responder.removeEventListener(DatabaseEvent.ERROR_EVENT, onError);
 					responder.removeEventListener(DatabaseEvent.RESULT_EVENT, onResult);
 				}
+			}
+			
+			
+			private function getDeviceInformation():void
+			{
+				// GEO LOCATION
+				if (Geolocation.isSupported) 
+				{ 
+					geo = new Geolocation(); 
+					if (!geo.muted) 
+					{ 
+						geo.addEventListener(GeolocationEvent.UPDATE, geoUpdateHandler); 
+					}
+					else
+					{
+						// show toast for activating the location
+						geo.addEventListener(StatusEvent.STATUS, geoStatusHandler);
+					}
+				} 
+				else 
+				{ 
+					// Toast that geoLocation is not supported
+				} 
+			}
+			
+			public function geoUpdateHandler(event:GeolocationEvent):void 
+			{ 
+				geo.removeEventListener(GeolocationEvent.UPDATE, geoUpdateHandler); 
+				geo.removeEventListener(StatusEvent.STATUS, geoStatusHandler);
+				lat = event.latitude.toString();
+				lng = event.longitude.toString();
+				gpsSensorsActive = true;
+			} 
+			
+			public function geoStatusHandler(event:StatusEvent):void 
+			{ 
+				if (geo.muted)
+					geo.removeEventListener(GeolocationEvent.UPDATE, geoUpdateHandler);
+				else
+					geo.addEventListener(GeolocationEvent.UPDATE, geoUpdateHandler);
+			}
+			
+			protected function view1_activateHandler(event:Event):void
+			{
+				if (geo)
+					geo.addEventListener(GeolocationEvent.UPDATE, geoUpdateHandler);
+			}
+			
+			protected function view1_deactivateHandler(event:Event):void
+			{
+				if(geo)
+					geo.removeEventListener(GeolocationEvent.UPDATE, geoUpdateHandler);
+				gpsSensorsActive = false;
 			}
 		]]>
 	</fx:Script>

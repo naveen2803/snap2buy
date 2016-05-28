@@ -1,15 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <s:View xmlns:fx="http://ns.adobe.com/mxml/2009" 
 		xmlns:s="library://ns.adobe.com/flex/spark" actionBarVisible="false"
-		initialize="init()" xmlns:components="components.*">
+		creationComplete="init()" xmlns:components="components.*">
+	<fx:Declarations>
+		<s:HTTPService id="servImageDetails" method="GET"
+					   result="servImageDetails_resultHandler(event)" fault="servImageDetails_faultHandler(event)"/>
+		
+		<s:HTTPService id="servUpdateLatLng" method="GET"
+					   url="http://snap2buy.com:8080/Snap2Buy-1.0/service/S2B/updateLatLong?imageUUID="
+					   result="servUpdateLatLng_resultHandler(event)" fault="servUpdateLatLng_faultHandler(event)"/>
+		
+		
+		
+	</fx:Declarations>
 	<fx:Script>
 		<![CDATA[
 			import com.distriqt.extension.webp.WebP;
 			
-			import flash.sensors.Geolocation;
-			
 			import mx.collections.ArrayCollection;
 			import mx.graphics.codec.JPEGEncoder;
+			import mx.rpc.events.FaultEvent;
+			import mx.rpc.events.ResultEvent;
+			import mx.utils.StringUtil;
 			import mx.utils.UIDUtil;
 			
 			import ane.ANEFunctions;
@@ -25,11 +37,10 @@
 			import pl.mateuszmackowiak.nativeANE.progress.NativeProgress;
 			import pl.mateuszmackowiak.nativeANE.toast.Toast;
 			
+			private var baseUrl:String = "http://snap2buy.com:8080/Snap2Buy-1.0/service/S2B/";
 			private var cam:CameraUI;
 			private var file:File;
-			private var geo:Geolocation;
-			private var lat:String = "0";
-			private var lng:String = "0"; 
+			
 			private var selectedItemId:Number;
 			private var selectedItemName:String;
 			private var selectedItemRewards:Number;
@@ -37,8 +48,11 @@
 			private var capturedImageBytes:ByteArray;
 			
 			private var arrItems:ArrayCollection = new ArrayCollection([
-				{itemName: "Breakfast", rewards: "0", itemId: "1"},
-				{itemName: "Shampoo", rewards: "0", itemId: "2"}]);
+				{itemName: "Shampoo", rewards: "0", itemId: "1"},
+				{itemName: "Pasta Sauce", rewards: "0", itemId: "2"},
+				{itemName: "Breakfast", rewards: "0", itemId: "3"}]);
+				
+				
 			
 			private var macAdress:String;
 			
@@ -157,9 +171,6 @@
 			{
 				if(CameraUI.isSupported)
 				{
-					// GET lat and lng values every time user starts the camera
-					getDeviceInformation();
-					
 					cam = new CameraUI();
 					cam.addEventListener(MediaEvent.COMPLETE, onImageCaptured);
 					cam.addEventListener(Event.CANCEL, onCancel);
@@ -192,8 +203,8 @@
 					if( validateBeforeUpload() )
 					{
 						cacheData = new CacheData();
-						cacheData.lat = lat;
-						cacheData.lng = lng;
+						cacheData.lat = Snap2Buy.lat;
+						cacheData.lng = Snap2Buy.lng;
 						cacheData.timeStamp = new Date().getTime().toString();
 						cacheData.userId = macAdress;
 						cacheData.itemId = selectedItemId;
@@ -205,19 +216,12 @@
 						{
 							ANEFunctions.openProgressPopup(NativeProgress.STYLE_SPINNER, "Uploading Image", "Please wait...");
 							var header:URLRequestHeader = new URLRequestHeader("accept", "application/json");
-							var url:String = "http://ec2-52-25-175-37.us-west-2.compute.amazonaws.com:8080/Snap2Pay-1.0/service/S2P/saveImage?userId=" + macAdress + "&latitude=" + lat + "&longitude=" + lng + "&categoryId=" + selectedItemId + "&timeStamp=" + cacheData.timeStamp + "&sync=true";
+							var url:String = baseUrl + "saveImage?userId=" + macAdress + "&latitude=" + Snap2Buy.lat + "&longitude=" + Snap2Buy.lng + "&categoryId=" + selectedItemId + "&timeStamp=" + cacheData.timeStamp + "&sync=false";
 							var uploadRequest:URLRequest = new URLRequest(url);
 							uploadRequest.method = URLRequestMethod.POST;
 							uploadRequest.contentType = "multipart/form-data";
 							uploadRequest.requestHeaders.push(header);
-							
-							/*var compresedBytes:ByteArray = compressBytes(event.data.file.data);
-							
-							var outStream:FileStream = new FileStream();  
-							outStream.open(file, FileMode.WRITE); 
-							outStream.writeBytes(compresedBytes, 0, compresedBytes.length);
-							outStream.close();
-							*/
+						
 							file.upload(uploadRequest);
 						}
 						else
@@ -376,17 +380,24 @@
 				var f:File = new File();
 				f.url = file.url;
 				f.deleteFile();
-				ANEFunctions.closeProgressPopUp();
+				
 				updateRewardsatabase();
 				
+				var imageDetails:Object = JSON.parse(event.data);
+				/* THIS CODE MOVED TO RESULT HANDLER OF IMAGE_ANALYSIS SERVICE
 				if(_isDemoMode)
 				{
 					var objToPass:Object = new Object();
 					objToPass.capturedImage = capturedImageBytes;
-					objToPass.matadata = JSON.parse(event.data);
+					objToPass.imageData = JSON.parse(event.data);
 					//objToPass.matadata = JSON.parse(dummyData);
 					navigator.pushView(DemoShelf, objToPass);
 				}
+				*/
+				
+				// make another service call to get product details of the uploaded image
+				
+				getImageAnalysis(imageDetails.MetaInfo[0].imageUUID as String);
 			}
 			private function onUploadError(event:IOErrorEvent):void
 			{
@@ -402,29 +413,13 @@
 				ANEFunctions.callAlert("Error", "Don't worry it's a server problem and we are fixing it, your data is saved and will be uploaded with your next upload");
 			}
 			
-			private function getDeviceInformation():void
+			private function getImageAnalysis(imageUUID:String):void
 			{
-				macAdress = Snap2Buy.deviceUUID;
-				
-				// GEO LOCATION
-				if (Geolocation.isSupported) 
-				{ 
-					geo = new Geolocation(); 
-					if (!geo.muted) 
-					{ 
-						geo.addEventListener(GeolocationEvent.UPDATE, geoUpdateHandler); 
-					}
-					else
-					{
-						// show toast for activating the location
-						geo.addEventListener(StatusEvent.STATUS, geoStatusHandler);
-					}
-				} 
-				else 
-				{ 
-					// Toast that geoLocation is not supported
-				} 
+				ANEFunctions.updateProgressPopUpTitle("Analysing Image...");
+				servImageDetails.url = "http://snap2buy.com:8080/Snap2Buy-1.0/service/S2B/getImageAnalysis?imageUUID=" + StringUtil.trim(imageUUID);
+				servImageDetails.send();
 			}
+			
 			
 			private function getRewardsInformation():void
 			{
@@ -482,25 +477,10 @@
 				}
 			}
 			
-			public function geoUpdateHandler(event:GeolocationEvent):void 
-			{ 
-				geo.removeEventListener(GeolocationEvent.UPDATE, geoUpdateHandler); 
-				geo.removeEventListener(StatusEvent.STATUS, geoStatusHandler);
-				lat = event.latitude.toString();
-				lng = event.longitude.toString();
-			} 
-			
-			public function geoStatusHandler(event:StatusEvent):void 
-			{ 
-				if (geo.muted)
-					geo.removeEventListener(GeolocationEvent.UPDATE, geoUpdateHandler);
-				else
-					geo.addEventListener(GeolocationEvent.UPDATE, geoUpdateHandler);
-			}
 			
 			private function validateBeforeUpload():Boolean
 			{
-				if(lat == "" || lng == "")
+				if(Snap2Buy.lat == "" || Snap2Buy.lng == "")
 					return false;
 				
 				return true;
@@ -573,7 +553,7 @@
 							f.addEventListener(IOErrorEvent.IO_ERROR, onCacheUploadError);
 							ANEFunctions.openProgressPopup(NativeProgress.STYLE_SPINNER, "Uploading Image", "Please wait...");
 							var header:URLRequestHeader = new URLRequestHeader("accept", "application/json");
-							var url:String = "http://ec2-52-25-175-37.us-west-2.compute.amazonaws.com:8080/Snap2Pay-1.0/service/S2P/saveImage?userId=" + macAdress + "&latitude=" + lat + "&longitude=" + lng + "&categoryId=" + selectedItemId + "&timeStamp=" + cacheData.timeStamp;
+							var url:String = baseUrl + "saveImage?sync=true&userId=" + macAdress + "&latitude=" + Snap2Buy.lat + "&longitude=" + Snap2Buy.lng + "&categoryId=" + selectedItemId + "&timeStamp=" + cacheData.timeStamp;
 							var uploadRequest:URLRequest = new URLRequest(url);
 							uploadRequest.method = URLRequestMethod.POST;
 							uploadRequest.contentType = "multipart/form-data";
@@ -619,6 +599,46 @@
 				}
 			}
 			
+			protected function servImageDetails_resultHandler(event:ResultEvent):void
+			{
+				ANEFunctions.closeProgressPopUp();
+				
+				var imageDetails:Object = JSON.parse(event.result as String);
+				var objToPass:Object = new Object();
+				objToPass.capturedImage = capturedImageBytes;
+				objToPass.imageData = imageDetails;
+				
+				// update lat lng coordinates
+				updateLatLng(imageDetails.MetaInfo[0].imageUUID as String);
+				
+				navigator.pushView(DemoShelf, objToPass);
+			}
+			
+			protected function servImageDetails_faultHandler(event:FaultEvent):void
+			{
+				ANEFunctions.closeProgressPopUp();
+				servImageDetails.send();
+				// TODO Auto-generated method stub
+				
+			}
+			
+			private function updateLatLng(imageUUID:String):void
+			{
+				servUpdateLatLng.url = servUpdateLatLng.url + imageUUID + "&latitude=" + Snap2Buy.lat + "&longitude=" + Snap2Buy.lng;
+				servUpdateLatLng.send();
+			}
+			
+			protected function servUpdateLatLng_resultHandler(event:ResultEvent):void
+			{
+				//9bf08714-e021-4c94-bc04-2d8b985dd1a0&latitude=1&longitude=1
+			}
+			
+			protected function servUpdateLatLng_faultHandler(event:FaultEvent):void
+			{
+				// TODO Auto-generated method stub
+				
+			}
+			
 		]]>
 	</fx:Script>
 	<s:Group width="100%" height="100%">
@@ -633,8 +653,9 @@
 	<s:Image source="assets/images/FinalLogo_2.png" horizontalCenter="0" top="10" scaleX="0.25" scaleY="0.25"/>
 	
 	<s:VGroup top="120" horizontalCenter="0" gap="30">
-		<components:CategoryItem name="0" click="menuItem_clickHandler(event)" displayName="Breakfast / Cereals" imageSource="assets/images/Snap2Buy_Cereal.jpg"/>
-		<components:CategoryItem name="1" click="menuItem_clickHandler(event)" displayName="Shampoo / Conditioners" imageSource="assets/images/Snap2Buy_Shampoo.jpg"/>
+		<components:CategoryItem name="0" click="menuItem_clickHandler(event)" displayName="Shampoo / Conditioners" imageSource="assets/images/Snap2Buy_Shampoo.jpg"/>
+		<components:CategoryItem name="1" click="menuItem_clickHandler(event)" displayName="Pasta Sauce" imageSource="assets/images/PastaSauce.jpg"/>
+		<components:CategoryItem name="2" click="menuItem_clickHandler(event)" displayName="Breakfast / Cereals" imageSource="assets/images/Snap2Buy_Cereal.jpg"/>
 	</s:VGroup>
 	
 	<s:Label text="0 pt" bottom="75" left="30" styleName="pointIndicatorStyle"/>

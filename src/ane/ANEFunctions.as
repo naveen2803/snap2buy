@@ -14,6 +14,11 @@ package ane
 		{
 		}
 		
+		public static function updateProgressPopUpTitle(title:String):void
+		{
+			progressPopup.setTitle(title);
+		}
+		
 		public static function openProgressPopup(style:int, title:String, message:String, iosTheme:uint = 0x00000004, androidTheme:uint=0x00000005, cancelable:Boolean = false, indeterminate:Boolean = true):void
 		{
 			try

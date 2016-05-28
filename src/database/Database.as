@@ -148,7 +148,7 @@ package database
 		{
 			if ( args[0] is DatabaseResponder )
 			{						
-				var sqlWrapper:SQLWrapper = this.sqlStatementFactory.newInstance(args[0], Commands.CREATE_TABLE_REWARDS, createCacheDataTable)
+				var sqlWrapper:SQLWrapper = this.sqlStatementFactory.newInstance(args[0], Commands.CREATE_TABLE_REWARDS, createCacheDataTable);
 				sqlWrapper.statement.execute();
 			}
 		}
@@ -156,7 +156,7 @@ package database
 		{
 			if ( args[0] is DatabaseResponder )
 			{						
-				var sqlWrapper:SQLWrapper = this.sqlStatementFactory.newInstance(args[0], Commands.CREATE_TABLE_CACHEDATA, createDeviceDataTable)
+				var sqlWrapper:SQLWrapper = this.sqlStatementFactory.newInstance(args[0], Commands.CREATE_TABLE_CACHEDATA, createDeviceDataTable);
 				sqlWrapper.statement.execute();
 			}
 		}
@@ -164,7 +164,7 @@ package database
 		{
 			if ( args[0] is DatabaseResponder )
 			{						
-				var sqlWrapper:SQLWrapper = this.sqlStatementFactory.newInstance(args[0], Commands.CREATE_TABLE_DEVICEDATA, finishedCreatingTables)
+				var sqlWrapper:SQLWrapper = this.sqlStatementFactory.newInstance(args[0], Commands.CREATE_TABLE_DEVICEDATA, finishedCreatingTables);
 				sqlWrapper.statement.execute();
 			}
 		}
